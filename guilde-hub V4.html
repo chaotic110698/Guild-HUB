@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Guilde Hub — Gestion de guilde Star Citizen</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e131a;
+  --panel:#151c26;
+  --panel-2:#1a2330;
+  --line:#2a3748;
+  --line-soft:#212c3a;
+  --text:#dbe6f3;
+  --muted:#8497ad;
+  --accent:#e2ab4a;          /* couleur de guilde, modifiable dans Paramètres */
+  --accent-ink:#141008;
+  --ok:#5cc28f;
+  --warn:#d99b3f;
+  --bad:#dd6060;
+  --off:#7c8ea1;
+  --font-display:'Rajdhani','Arial Narrow',Arial,sans-serif;
+  --font-mono:'IBM Plex Mono','Consolas','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-display);
+  font-size:16px;
+  line-height:1.45;
+  min-height:100vh;
+}
+button,input,select,textarea{font-family:inherit;color:inherit}
+img{max-width:100%;display:block}
+
+/* ---------- Coins HUD (signature visuelle) ---------- */
+.hud{position:relative;background:var(--panel);border:1px solid var(--line)}
+.hud::before,.hud::after{
+  content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+}
+.hud::before{top:-1px;left:-1px;border-top:2px solid var(--fx,var(--accent));border-left:2px solid var(--fx,var(--accent))}
+.hud::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--fx,var(--accent));border-right:2px solid var(--fx,var(--accent))}
+
+/* ---------- En-tête ---------- */
+header{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 18px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#131a24,#0e131a);
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .logo{
+  width:46px;height:46px;flex:none;border:1px solid var(--line);
+  background:var(--panel-2);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.brand .logo img{width:100%;height:100%;object-fit:contain}
+.brand .logo span{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.brand h1{
+  font-size:20px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.brand small{
+  display:block;font-family:var(--font-mono);font-size:11px;
+  color:var(--muted);letter-spacing:.08em;text-transform:none;font-weight:400;
+}
+.header-actions{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+
+/* ---------- Boutons ---------- */
+.btn{
+  min-height:44px;padding:8px 16px;cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+  font-size:16px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  transition:border-color .15s,background .15s;
+}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:#6b3434;color:var(--bad)}
+.btn.danger:hover{border-color:var(--bad)}
+.btn.small{min-height:36px;padding:4px 10px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- Onglets ---------- */
+nav.tabs{
+  display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  border-bottom:1px solid var(--line);background:var(--bg);
+  padding:0 10px;scrollbar-width:thin;
+}
+nav.tabs button{
+  flex:none;min-height:48px;padding:10px 18px;cursor:pointer;
+  background:none;border:none;border-bottom:3px solid transparent;
+  color:var(--muted);font-size:16px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;
+}
+nav.tabs button.active{color:var(--accent);border-bottom-color:var(--accent)}
+nav.tabs button:hover{color:var(--text)}
+
+main{padding:18px;max-width:1280px;margin:0 auto}
+section.tab{display:none}
+section.tab.active{display:block}
+
+/* ---------- Titres de section ---------- */
+.sec-title{
+  display:flex;align-items:baseline;gap:10px;margin:4px 0 14px;flex-wrap:wrap;
+}
+.sec-title h2{
+  font-size:22px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+}
+.sec-title .ref{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.sec-sub{color:var(--muted);font-size:15px;margin:-8px 0 14px}
+
+/* ---------- Grilles / panneaux ---------- */
+.grid-2{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;align-items:start}
+.panel{padding:16px}
+.panel h3{
+  font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.panel h3::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+
+/* ---------- Formulaires ---------- */
+.field{margin-bottom:12px}
+.field label{
+  display:block;font-family:var(--font-mono);font-size:12px;color:var(--muted);
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;
+}
+.field input[type=text],.field input[type=date],.field input[type=number],
+.field select,.field textarea{
+  width:100%;min-height:44px;padding:8px 10px;font-size:16px;
+  background:var(--bg);border:1px solid var(--line);color:var(--text);
+}
+.field textarea{min-height:70px;resize:vertical}
+.field input:focus,.field select:focus,.field textarea:focus{
+  outline:none;border-color:var(--accent);
+}
+.field-row{display:flex;gap:10px}
+.field-row .field{flex:1;min-width:0}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+input[type=color]{width:60px;height:44px;padding:2px;background:var(--bg);border:1px solid var(--line);cursor:pointer}
+input[type=file]{font-size:14px;color:var(--muted)}
+.extra-row{display:flex;gap:8px;margin-bottom:8px}
+.extra-row input{flex:1;min-width:0;min-height:44px;padding:8px 10px;font-size:16px;background:var(--bg);border:1px solid var(--line);color:var(--text)}
+.extra-row input:focus{outline:none;border-color:var(--accent)}
+.extra-row button{width:44px;min-height:44px;flex:none;background:var(--panel-2);border:1px solid var(--line);color:var(--bad);cursor:pointer;font-size:16px}
+.extra-row button:hover{border-color:var(--bad)}
+
+/* ---------- Membres : liste ---------- */
+.member-list{display:flex;flex-direction:column;gap:8px}
+.member-row{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;
+  background:var(--panel);border:1px solid var(--line-soft);
+}
+.avatar{
+  width:46px;height:46px;flex:none;border:1px solid var(--line);
+  background:var(--panel-2);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:16px;color:var(--accent);
+}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.member-row .who{min-width:0;flex:1}
+.member-row .who b{font-size:17px;letter-spacing:.04em}
+.member-row .who .meta{
+  font-family:var(--font-mono);font-size:12px;color:var(--muted);
+  display:flex;gap:10px;flex-wrap:wrap;
+}
+.member-row .row-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.count-badge{
+  font-family:var(--font-mono);font-size:12px;color:var(--muted);
+  border:1px solid var(--line);padding:2px 8px;
+}
+
+/* ---------- Organigramme ---------- */
+.org-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+.org-canvas{overflow-x:auto;padding:10px 4px 20px;-webkit-overflow-scrolling:touch}
+.org-tree{display:flex;gap:16px;align-items:flex-start;min-width:min-content}
+.org-branch{display:flex;flex-direction:column;align-items:center;min-width:min-content}
+.org-children{
+  display:flex;gap:14px;align-items:flex-start;margin-top:22px;position:relative;
+  min-width:min-content;
+}
+.org-children::before{
+  content:"";position:absolute;top:-12px;left:50%;width:1px;height:12px;background:var(--line);
+}
+.org-node{
+  width:190px;flex:none;background:var(--panel);border:1px solid var(--line);
+  padding:10px;position:relative;
+}
+.org-node.drop-hover{border-color:var(--accent);background:var(--panel-2)}
+.org-node .pos-title{
+  font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:2px;
+}
+.org-node .pos-grade{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-bottom:8px}
+.org-node .pos-member{display:flex;align-items:center;gap:8px;min-height:40px}
+.org-node .pos-member .avatar{width:36px;height:36px;font-size:13px}
+.org-node .pos-member b{font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.org-node .pos-empty{
+  min-height:40px;display:flex;align-items:center;justify-content:center;
+  border:1px dashed var(--line);color:var(--muted);font-size:13px;cursor:pointer;
+}
+.org-node .pos-empty:hover{border-color:var(--accent);color:var(--text)}
+.org-node .node-tools{
+  position:absolute;top:4px;right:4px;display:flex;gap:2px;
+}
+.node-tools button{
+  width:26px;height:26px;background:none;border:none;color:var(--muted);
+  cursor:pointer;font-size:14px;line-height:1;
+}
+.node-tools button:hover{color:var(--accent)}
+.org-reserve{margin-top:6px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;
+  background:var(--panel-2);border:1px solid var(--line);cursor:grab;
+  min-height:44px;user-select:none;-webkit-user-select:none;
+}
+.chip .avatar{width:30px;height:30px;font-size:12px}
+.chip.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.hint{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:8px}
+
+/* ---------- Statuts flotte ---------- */
+.status{
+  display:inline-block;padding:2px 10px;font-family:var(--font-mono);
+  font-size:12px;letter-spacing:.06em;border:1px solid;
+}
+.status.assure{color:var(--ok);border-color:var(--ok)}
+.status.reparation{color:var(--warn);border-color:var(--warn)}
+.status.hs{color:var(--off);border-color:var(--off)}
+.status.perdu{color:var(--bad);border-color:var(--bad)}
+
+.fleet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.fleet-card{background:var(--panel);border:1px solid var(--line-soft);padding:12px}
+.fleet-card .ship-name{font-size:18px;font-weight:700;letter-spacing:.05em}
+.fleet-card .ship-model{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-bottom:8px}
+.fleet-card .fleet-meta{display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap}
+.fleet-card select{min-height:38px;font-size:15px;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:4px 8px}
+.fleet-stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.fleet-stats .stat{font-family:var(--font-mono);font-size:13px;color:var(--muted)}
+.fleet-stats .stat b{color:var(--text);font-size:16px;margin-right:4px}
+
+/* ---------- Documents exportables (cartes / certificats) ---------- */
+.doc-wrap{overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+
+.ship-card,.pilot-card{
+  width:420px;background:linear-gradient(160deg,#182130,#10161f);
+  border:1px solid var(--line);color:var(--text);
+  font-family:var(--font-display);position:relative;flex:none;
+}
+.doc-head{
+  display:flex;align-items:center;gap:10px;padding:12px 14px;
+  border-bottom:1px solid var(--line);
+}
+.doc-head .logo{width:38px;height:38px;flex:none;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;background:#0c1118}
+.doc-head .logo img{width:100%;height:100%;object-fit:contain}
+.doc-head .logo span{font-family:var(--font-mono);font-size:9px;color:var(--muted)}
+.doc-head .t{min-width:0;flex:1}
+.doc-head .t b{display:block;font-size:15px;letter-spacing:.12em;text-transform:uppercase}
+.doc-head .t span{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em}
+.doc-ref{font-family:var(--font-mono);font-size:10px;color:var(--accent);text-align:right;line-height:1.5}
+
+.ship-card .body,.pilot-card .body{padding:14px}
+.doc-title{font-size:24px;font-weight:700;letter-spacing:.06em;line-height:1.1}
+.doc-subtitle{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-bottom:12px}
+.spec-list{border-top:1px solid var(--line-soft)}
+.spec-list .spec{
+  display:flex;justify-content:space-between;gap:12px;
+  padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:15px;
+}
+.spec-list .spec span{font-family:var(--font-mono);font-size:12px;color:var(--muted);
+  letter-spacing:.06em;text-transform:uppercase;padding-top:2px}
+.spec-list .spec b{text-align:right;font-weight:600}
+.doc-foot{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;border-top:1px solid var(--line);
+  font-family:var(--font-mono);font-size:10px;color:var(--muted);
+}
+
+.pilot-card .id-block{display:flex;gap:14px;margin-bottom:12px}
+.pilot-card .id-block .avatar{width:86px;height:86px;font-size:28px}
+.pilot-card .id-fields{flex:1;min-width:0}
+.pilot-card .id-fields .doc-title{font-size:26px}
+.pilot-card .tag-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.pilot-card .tag{
+  font-family:var(--font-mono);font-size:11px;color:var(--accent);
+  border:1px solid var(--accent);padding:3px 8px;letter-spacing:.06em;
+  display:inline-block;line-height:13px;
+}
+.pilot-card h4{
+  font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin:12px 0 6px;display:flex;align-items:center;gap:8px;
+}
+.pilot-card h4::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+.pilot-card ul{list-style:none}
+.pilot-card ul li{
+  font-size:14px;padding:3px 0;display:flex;justify-content:space-between;gap:10px;
+}
+.pilot-card ul li span{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.pilot-card .none{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+
+/* ---------- Effets de carte pilote (prestige) ---------- */
+.pilot-card{overflow:hidden}
+.pilot-card .prestige{
+  font-size:16px;letter-spacing:5px;color:var(--fx,var(--accent));
+  margin-top:6px;text-shadow:0 0 6px rgba(255,255,255,.15);
+}
+.pilot-card .prestige i{font-style:normal;opacity:.25}
+.pilot-card .fx-tag{border-color:var(--fx,var(--accent));color:var(--fx,var(--accent))}
+
+.pilot-card.fx-bronze{
+  --fx:#c08347;border:2px solid #9a6a38;
+  background:linear-gradient(160deg,#231a11,#141a24 55%,#10161f);
+  box-shadow:inset 0 0 30px rgba(192,131,71,.10);
+}
+.pilot-card.fx-argent{
+  --fx:#c7d3e0;border:2px solid #93a3b4;
+  background:linear-gradient(160deg,#1e2632,#141a24 55%,#10161f);
+  box-shadow:inset 0 0 30px rgba(199,211,224,.10);
+}
+.pilot-card.fx-or{
+  --fx:#e6b84c;border:2px solid #c99b34;
+  background:linear-gradient(160deg,#261d0b,#161c26 55%,#10161f);
+  box-shadow:0 0 22px rgba(230,184,76,.22),inset 0 0 34px rgba(230,184,76,.12);
+}
+.pilot-card.fx-holo{
+  --fx:#9fd8ff;border:2px solid transparent;
+  background:
+    linear-gradient(160deg,#182130,#10161f) padding-box,
+    linear-gradient(120deg,#ff6f9f,#ffd75f,#69f0b0,#63b3ff,#b06fff) border-box;
+}
+.pilot-card.fx-furtif{
+  --fx:#e05c5c;border:2px solid #4a1318;
+  background:linear-gradient(160deg,#120c0e,#0a0d12);
+  box-shadow:inset 0 0 34px rgba(224,92,92,.08);
+}
+.pilot-card .holo-sheen{
+  position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:linear-gradient(115deg,transparent 32%,rgba(255,255,255,.16) 45%,
+    rgba(130,220,255,.22) 50%,rgba(255,150,220,.18) 55%,transparent 68%);
+  background-size:250% 250%;mix-blend-mode:screen;
+  animation:holo-sheen 4.5s linear infinite;
+}
+@keyframes holo-sheen{
+  0%{background-position:130% 0}
+  100%{background-position:-60% 0}
+}
+@media (prefers-reduced-motion:reduce){.pilot-card .holo-sheen{animation:none;background-position:50% 0}}
+
+/* ---------- Certificat ---------- */
+.certificate{
+  width:640px;flex:none;background:#f2ecdd;color:#242018;
+  border:2px solid #3a3428;padding:8px;font-family:var(--font-display);
+}
+.certificate .inner{
+  border:1px solid #8a7f66;padding:28px 32px;position:relative;
+  background:
+    radial-gradient(circle at 50% 0%,rgba(138,127,102,.08),transparent 60%),
+    #f2ecdd;
+}
+.certificate .c-guild{
+  display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;
+}
+.certificate .c-guild .logo{width:44px;height:44px;display:flex;align-items:center;justify-content:center}
+.certificate .c-guild .logo img{width:100%;height:100%;object-fit:contain}
+.certificate .c-guild b{font-size:16px;letter-spacing:.22em;text-transform:uppercase}
+.certificate .c-kind{
+  text-align:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.3em;
+  text-transform:uppercase;color:#6d6350;margin-bottom:14px;
+}
+.certificate .c-title{
+  text-align:center;font-size:34px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;line-height:1.1;margin-bottom:4px;
+}
+.certificate .c-rule{width:120px;height:2px;background:#8a7f66;margin:10px auto 16px}
+.certificate .c-body{text-align:center;font-size:16px;max-width:480px;margin:0 auto 8px}
+.certificate .c-recipient{
+  text-align:center;font-size:26px;font-weight:700;letter-spacing:.06em;margin:10px 0 2px;
+}
+.certificate .c-grade{
+  text-align:center;font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:#6d6350;margin-bottom:14px;
+}
+.certificate .c-motif{
+  text-align:center;font-size:15px;font-style:italic;max-width:480px;margin:0 auto 22px;
+}
+.certificate .c-foot{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:8px;
+}
+.certificate .c-sig{text-align:center;min-width:150px}
+.certificate .c-sig .line{border-top:1px solid #3a3428;margin-top:34px;padding-top:4px;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6d6350}
+.certificate .c-date{font-family:var(--font-mono);font-size:12px;color:#40392c}
+.certificate .c-ref{
+  position:absolute;top:10px;right:14px;font-family:var(--font-mono);
+  font-size:10px;letter-spacing:.08em;color:#8a7f66;
+}
+.certificate .seal{
+  width:74px;height:74px;border-radius:50%;
+  border:2px solid var(--accent);color:var(--accent);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  box-shadow:inset 0 0 0 3px #f2ecdd,inset 0 0 0 4px var(--accent);
+  text-align:center;line-height:1.3;background:rgba(226,171,74,.06);
+}
+.certificate .seal b{font-size:15px;letter-spacing:.14em}
+
+/* ---------- Historique décorations ---------- */
+.deco-list{display:flex;flex-direction:column;gap:6px}
+.deco-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;
+  background:var(--panel);border:1px solid var(--line-soft);font-size:15px;flex-wrap:wrap;
+}
+.deco-item .d-type{
+  font-family:var(--font-mono);font-size:11px;color:var(--accent);
+  border:1px solid var(--accent);padding:1px 6px;flex:none;
+}
+.deco-item .d-date{font-family:var(--font-mono);font-size:11px;color:var(--muted);margin-left:auto}
+
+/* ---------- Modale ---------- */
+.modal-back{
+  display:none;position:fixed;inset:0;background:rgba(6,9,13,.75);
+  z-index:50;padding:20px;overflow-y:auto;
+}
+.modal-back.open{display:flex;align-items:flex-start;justify-content:center}
+.modal{width:100%;max-width:480px;padding:20px;margin-top:5vh}
+.modal h3{margin-bottom:14px}
+.modal .close-row{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+
+/* ---------- Toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:var(--panel-2);border:1px solid var(--accent);color:var(--text);
+  padding:10px 18px;font-size:15px;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;z-index:99;max-width:90vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- Zone d'export hors écran ---------- */
+#export-stage{position:absolute;left:-9999px;top:0}
+
+/* ---------- Dossier PDF membre ---------- */
+.dossier{
+  width:720px;background:#f2ecdd;color:#242018;padding:36px 42px;
+  font-family:var(--font-display);
+}
+.dossier .d-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #3a3428;padding-bottom:12px;margin-bottom:18px}
+.dossier .d-head .logo{width:52px;height:52px}
+.dossier .d-head .logo img{width:100%;height:100%;object-fit:contain}
+.dossier .d-head b{font-size:20px;letter-spacing:.2em;text-transform:uppercase;display:block}
+.dossier .d-head span{font-family:var(--font-mono);font-size:11px;color:#6d6350;letter-spacing:.08em}
+.dossier .d-ref{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:#6d6350;text-align:right}
+.dossier h2{font-size:30px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.dossier .d-sub{font-family:var(--font-mono);font-size:12px;color:#6d6350;margin-bottom:16px;letter-spacing:.1em;text-transform:uppercase}
+.dossier .d-id{display:flex;gap:18px;margin-bottom:20px}
+.dossier .d-id .avatar{width:110px;height:110px;border:1px solid #8a7f66;background:#e6dfcc;color:#8a7f66;font-size:34px}
+.dossier table{width:100%;border-collapse:collapse;margin-bottom:18px}
+.dossier th{
+  text-align:left;font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:#6d6350;border-bottom:1px solid #8a7f66;padding:4px 8px 4px 0;
+}
+.dossier td{font-size:15px;border-bottom:1px solid #d8cfb8;padding:5px 8px 5px 0;vertical-align:top}
+.dossier h3{
+  font-size:14px;letter-spacing:.16em;text-transform:uppercase;color:#40392c;
+  border-bottom:1px solid #8a7f66;padding-bottom:3px;margin:18px 0 8px;
+}
+.dossier .d-foot{
+  margin-top:26px;display:flex;justify-content:space-between;align-items:flex-end;
+  font-family:var(--font-mono);font-size:11px;color:#6d6350;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width:900px){
+  .grid-2{grid-template-columns:1fr}
+  main{padding:12px}
+  header{padding:12px}
+  .brand h1{font-size:17px}
+}
+@media (max-width:520px){
+  .member-row{flex-wrap:wrap}
+  .member-row .row-actions{width:100%;justify-content:flex-start}
+  .field-row{flex-direction:column;gap:0}
+  .header-actions{width:100%}
+  .header-actions .btn{flex:1}
+}
+@media print{
+  header,nav.tabs,.no-print{display:none !important}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo" id="header-logo"><span>LOGO</span></div>
+    <div>
+      <h1 id="header-guild-name">Guilde Hub</h1>
+      <small id="header-guild-motto">Système de gestion unifié — Star Citizen</small>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn small" id="btn-import">Importer JSON</button>
+    <button class="btn small" id="btn-export">Exporter JSON</button>
+    <button class="btn small" id="btn-settings">Paramètres</button>
+  </div>
+  <input type="file" id="import-file" accept="application/json" hidden>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="members" class="active">Membres</button>
+  <button data-tab="org">Organigramme</button>
+  <button data-tab="ships">Fiches vaisseau</button>
+  <button data-tab="fleet">Flotte</button>
+  <button data-tab="pilot">Cartes pilote</button>
+  <button data-tab="certs">Certificats</button>
+</nav>
+
+<main>
+
+<!-- ============================ MEMBRES ============================ -->
+<section class="tab active" id="tab-members">
+  <div class="sec-title">
+    <h2>Registre des membres</h2>
+    <span class="ref">MOD-01 // BASE CENTRALE</span>
+    <span class="count-badge" id="member-count">0 membre</span>
+  </div>
+  <p class="sec-sub">Base de référence : chaque membre créé ici (ou depuis un autre onglet) devient sélectionnable partout ailleurs.</p>
+
+  <div class="grid-2">
+    <div class="panel hud">
+      <h3 id="member-form-title">Nouveau membre</h3>
+      <div class="field">
+        <label for="m-pseudo">Pseudo *</label>
+        <input type="text" id="m-pseudo" placeholder="Ex : NovaStrike" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="m-mat">Matricule</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="m-mat" placeholder="Vide, saisi à la main, ou généré →" autocomplete="off" style="flex:1;min-width:0">
+          <button class="btn small" id="m-mat-gen" type="button" title="Générer selon le format défini dans Paramètres">Générer</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="m-grade">Grade</label>
+          <input type="text" id="m-grade" list="grades-list" placeholder="Ex : Lieutenant" autocomplete="off">
+          <datalist id="grades-list">
+            <option>Recrue</option><option>Membre</option><option>Vétéran</option>
+            <option>Sergent</option><option>Lieutenant</option><option>Capitaine</option>
+            <option>Commandant</option><option>Vice-Amiral</option><option>Amiral</option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="m-faction">Faction / division</label>
+          <input type="text" id="m-faction" placeholder="Ex : Escadron Aurora" autocomplete="off">
+        </div>
+      </div>
+      <div class="field">
+        <label for="m-joined">Date d'entrée</label>
+        <input type="date" id="m-joined">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="m-discord">Pseudo Discord</label>
+          <input type="text" id="m-discord" placeholder="Ex : novastrike_" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="m-rsi">Handle RSI</label>
+          <input type="text" id="m-rsi" placeholder="Ex : Nova-Strike" autocomplete="off">
+        </div>
+      </div>
+      <div class="field">
+        <label>Champs personnalisés (fuseau horaire, rôle préféré, langue…)</label>
+        <div id="m-extra"></div>
+        <button class="btn small" id="m-extra-add" type="button">＋ Ajouter un champ</button>
+      </div>
+      <div class="field">
+        <label for="m-avatar">Avatar / photo</label>
+        <input type="file" id="m-avatar" accept="image/*">
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" id="m-save">Ajouter le membre</button>
+        <button class="btn" id="m-cancel" style="display:none">Annuler</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="field-row no-print" style="margin-bottom:10px">
+        <div class="field" style="margin-bottom:0">
+          <label for="m-search">Recherche</label>
+          <input type="text" id="m-search" placeholder="Filtrer par pseudo, grade ou faction…" autocomplete="off">
+        </div>
+        <div class="field" style="margin-bottom:0;max-width:260px">
+          <label for="m-sort">Trier par</label>
+          <select id="m-sort">
+            <option value="pseudo">Pseudo (A → Z)</option>
+            <option value="grade">Grade (hiérarchie)</option>
+            <option value="joined-asc">Date d'entrée — anciens d'abord</option>
+            <option value="joined-desc">Date d'entrée — récents d'abord</option>
+            <option value="ships">Nombre de vaisseaux</option>
+            <option value="decos">Nombre de décorations</option>
+          </select>
+        </div>
+      </div>
+      <div class="member-list" id="member-list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ORGANIGRAMME ============================ -->
+<section class="tab" id="tab-org">
+  <div class="sec-title">
+    <h2>Organigramme</h2>
+    <span class="ref">MOD-02 // CHAÎNE DE COMMANDEMENT</span>
+  </div>
+  <p class="sec-sub">Créez des positions, puis glissez un membre de la réserve vers une case — ou touchez un membre puis une case (mobile). Un pseudo inconnu créé ici est ajouté automatiquement au registre des membres.</p>
+
+  <div class="panel hud org-toolbar">
+    <div class="field" style="flex:1;min-width:150px;margin:0">
+      <label for="o-title">Intitulé de la position</label>
+      <input type="text" id="o-title" placeholder="Ex : Chef d'escadron" autocomplete="off">
+    </div>
+    <div class="field" style="flex:1;min-width:130px;margin:0">
+      <label for="o-grade">Grade associé</label>
+      <input type="text" id="o-grade" list="grades-list" placeholder="Optionnel" autocomplete="off">
+    </div>
+    <div class="field" style="flex:1;min-width:150px;margin:0">
+      <label for="o-parent">Rattachée à</label>
+      <select id="o-parent"></select>
+    </div>
+    <button class="btn primary" id="o-add">Ajouter la position</button>
+  </div>
+
+  <div class="org-canvas">
+    <div class="org-tree" id="org-tree"></div>
+  </div>
+
+  <div class="panel hud org-reserve">
+    <h3>Réserve de membres</h3>
+    <div class="chips" id="org-chips"></div>
+    <p class="hint" id="org-hint">Glissez un membre sur une position, ou touchez-le puis touchez une position.</p>
+  </div>
+</section>
+
+<!-- ============================ FICHES VAISSEAU ============================ -->
+<section class="tab" id="tab-ships">
+  <div class="sec-title">
+    <h2>Fiches de vaisseau</h2>
+    <span class="ref">MOD-03 // LOADOUT</span>
+  </div>
+  <p class="sec-sub">Le propriétaire est sélectionné dans le registre des membres — aucune ressaisie. Chaque fiche enregistrée alimente l'onglet Flotte.</p>
+
+  <div class="grid-2">
+    <div class="panel hud">
+      <h3 id="ship-form-title">Nouvelle fiche</h3>
+      <div class="field">
+        <label for="s-edit">Fiche existante</label>
+        <select id="s-edit"></select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="s-name">Nom du vaisseau *</label>
+          <input type="text" id="s-name" placeholder="Ex : Dague d'Orion" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s-model">Modèle</label>
+          <input type="text" id="s-model" placeholder="Ex : Aegis Gladius" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="s-role">Rôle</label>
+          <input type="text" id="s-role" placeholder="Ex : Chasseur léger" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s-owner">Propriétaire</label>
+          <select id="s-owner"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="s-status">Statut</label>
+        <select id="s-status">
+          <option value="assure">Assuré</option>
+          <option value="reparation">En réparation</option>
+          <option value="hs">Hors service</option>
+          <option value="perdu">Perdu</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="s-armes">Armes</label>
+          <input type="text" id="s-armes" placeholder="Ex : 2× CF-227 Badger" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s-missiles">Missiles</label>
+          <input type="text" id="s-missiles" placeholder="Ex : 4× Ignite II" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="s-boucliers">Boucliers</label>
+          <input type="text" id="s-boucliers" placeholder="Ex : FR-66" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s-generateur">Générateur</label>
+          <input type="text" id="s-generateur" placeholder="Ex : Regulus" autocomplete="off">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="s-refroidisseurs">Refroidisseurs</label>
+          <input type="text" id="s-refroidisseurs" placeholder="Ex : 2× Bracer" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="s-quantum">Moteur quantum</label>
+          <input type="text" id="s-quantum" placeholder="Ex : XL-1" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" id="s-save">Enregistrer la fiche</button>
+        <button class="btn danger" id="s-delete" style="display:none">Supprimer</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="doc-wrap">
+        <div class="ship-card hud" id="ship-card"></div>
+      </div>
+      <div class="form-actions no-print" style="margin-top:12px">
+        <button class="btn" id="s-export-png">Exporter la carte en PNG</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FLOTTE ============================ -->
+<section class="tab" id="tab-fleet">
+  <div class="sec-title">
+    <h2>Flotte de guilde</h2>
+    <span class="ref">MOD-04 // ROSTER</span>
+  </div>
+  <p class="sec-sub">Vue d'ensemble des vaisseaux enregistrés dans les fiches. Le statut est modifiable directement ici.</p>
+
+  <div class="fleet-stats" id="fleet-stats"></div>
+  <div class="field no-print" style="max-width:280px">
+    <label for="fleet-filter">Filtrer par statut</label>
+    <select id="fleet-filter">
+      <option value="">Tous</option>
+      <option value="assure">Assuré</option>
+      <option value="reparation">En réparation</option>
+      <option value="hs">Hors service</option>
+      <option value="perdu">Perdu</option>
+    </select>
+  </div>
+  <div class="fleet-grid" id="fleet-grid"></div>
+</section>
+
+<!-- ============================ CARTES PILOTE ============================ -->
+<section class="tab" id="tab-pilot">
+  <div class="sec-title">
+    <h2>Cartes de profil pilote</h2>
+    <span class="ref">MOD-05 // IDENTIFICATION</span>
+  </div>
+  <p class="sec-sub">Sélectionnez un membre : pseudo, grade et avatar se remplissent seuls, avec ses vaisseaux et décorations connus.</p>
+
+  <div class="grid-2">
+    <div class="panel hud">
+      <h3>Sélection</h3>
+      <div class="field">
+        <label for="p-member">Membre</label>
+        <select id="p-member"></select>
+      </div>
+      <div class="field">
+        <label for="p-callsign">Indicatif / devise personnelle</label>
+        <input type="text" id="p-callsign" placeholder="Optionnel — Ex : « Toujours en avant »" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="p-fx">Effet de carte</label>
+        <select id="p-fx">
+          <option value="auto">Auto — selon le prestige (décorations)</option>
+          <option value="standard">Standard</option>
+          <option value="bronze">Cadre Bronze</option>
+          <option value="argent">Cadre Argent</option>
+          <option value="or">Cadre Or</option>
+          <option value="holo">Holographique</option>
+          <option value="furtif">Furtif</option>
+        </select>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:15px;color:var(--text)">
+          <input type="checkbox" id="p-sheen" checked style="width:20px;height:20px;accent-color:var(--accent)">
+          Reflet animé (cartes Or &amp; Holo)
+        </label>
+      </div>
+      <div class="field">
+        <label for="p-fps">Fluidité du GIF — images/seconde (5 à 60)</label>
+        <input type="number" id="p-fps" min="5" max="60" step="1" value="9" inputmode="numeric">
+      </div>
+      <div class="form-actions">
+        <button class="btn" id="p-export-png">Exporter la carte en PNG</button>
+        <button class="btn" id="p-export-gif">Exporter en GIF animé</button>
+      </div>
+      <p class="hint">L'effet choisi est mémorisé sur la fiche du membre (et sauvegardé dans l'export JSON). En mode Auto : 1 décoration = Bronze, 3 = Argent, 5 = Or, 7+ = Holographique. Le GIF animé nécessite une carte Or ou Holo avec le reflet activé.</p>
+    </div>
+
+    <div class="doc-wrap">
+      <div class="pilot-card hud" id="pilot-card"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CERTIFICATS ============================ -->
+<section class="tab" id="tab-certs">
+  <div class="sec-title">
+    <h2>Certificats &amp; décorations</h2>
+    <span class="ref">MOD-06 // DOCUMENTS OFFICIELS</span>
+  </div>
+  <p class="sec-sub">Nom et grade pré-remplis depuis le registre. Chaque décoration délivrée s'ajoute à l'historique du membre, visible sur sa carte de profil.</p>
+
+  <div class="grid-2">
+    <div class="panel hud">
+      <h3>Rédaction</h3>
+      <div class="field">
+        <label for="c-member">Récipiendaire</label>
+        <select id="c-member"></select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="c-type">Type</label>
+          <select id="c-type">
+            <option>Certificat de mérite</option>
+            <option>Médaille</option>
+            <option>Promotion</option>
+            <option>Citation</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="c-date">Date</label>
+          <input type="date" id="c-date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="c-title">Intitulé de la décoration *</label>
+        <input type="text" id="c-title" placeholder="Ex : Étoile de Stanton" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="c-motif">Motif</label>
+        <textarea id="c-motif" placeholder="Ex : Pour bravoure exceptionnelle lors de la défense du convoi C-114."></textarea>
+      </div>
+      <div class="field">
+        <label for="c-signer">Signataire</label>
+        <input type="text" id="c-signer" placeholder="Ex : Amiral Kell Voss" autocomplete="off">
+      </div>
+      <div class="form-actions">
+        <button class="btn primary" id="c-award">Délivrer la décoration</button>
+        <button class="btn" id="c-export-png">Exporter en PNG</button>
+      </div>
+      <p class="hint">« Délivrer » enregistre la décoration dans l'historique du membre.</p>
+    </div>
+
+    <div>
+      <div class="doc-wrap">
+        <div class="certificate" id="certificate"></div>
+      </div>
+      <h3 style="margin:18px 0 8px;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">Historique des décorations</h3>
+      <div class="deco-list" id="deco-list"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============================ MODALE PARAMÈTRES ============================ -->
+<div class="modal-back" id="settings-modal">
+  <div class="modal hud panel">
+    <h3>Paramètres de guilde</h3>
+    <div class="field">
+      <label for="g-name">Nom de la guilde</label>
+      <input type="text" id="g-name" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="g-motto">Devise / sous-titre</label>
+      <input type="text" id="g-motto" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="g-logo">Logo (appliqué à tous les documents)</label>
+      <input type="file" id="g-logo" accept="image/*">
+    </div>
+    <div class="field">
+      <label for="g-accent">Couleur d'accent</label>
+      <input type="color" id="g-accent" value="#e2ab4a">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="g-mat-prefix">Matricule — préfixe fixe</label>
+        <input type="text" id="g-mat-prefix" placeholder="Ex : MAT-" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="g-mat-pattern">Matricule — format aléatoire</label>
+        <input type="text" id="g-mat-pattern" placeholder="Ex : 000-AAAA-0000" autocomplete="off">
+      </div>
+    </div>
+    <p class="hint" style="margin:-6px 0 12px">Dans le format : <b>0</b> = chiffre aléatoire, <b>A</b> = lettre aléatoire, tout autre caractère est conservé tel quel. Ex : MAT- + 000-AAAA-0000 → MAT-482-KQTZ-7315.</p>
+    <div class="field">
+      <label>Matricules</label>
+      <div class="form-actions">
+        <button class="btn small" id="g-mat-all">Générer pour les membres sans matricule</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Données</label>
+      <div class="form-actions">
+        <button class="btn small danger" id="g-clear">Tout effacer</button>
+      </div>
+    </div>
+    <div class="close-row">
+      <button class="btn primary" id="g-close">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="export-stage"></div>
+
+<script>
+/* =====================================================================
+   GUILDE HUB — v1
+   Architecture : un état global unique (state) partagé par tous les
+   onglets. Toute modification passe par les helpers ci-dessous, puis
+   refreshAll() re-synchronise l'ensemble des vues et listes déroulantes.
+   ===================================================================== */
+
+/* ---------------- État global ---------------- */
+const STATUS_LABELS = { assure:"Assuré", reparation:"En réparation", hs:"Hors service", perdu:"Perdu" };
+
+let state = {
+  version: 1,
+  guild: {
+    name: "Guilde Hub",
+    motto: "Système de gestion unifié — Star Citizen",
+    logo: null,          // dataURL
+    accent: "#e2ab4a",
+    matricule: { prefix: "MAT-", pattern: "000-AAAA-0000" }
+  },
+  members: [],           // {id, pseudo, grade, faction, joined, avatar}
+  ships: [],             // {id, name, model, role, ownerId, status, loadout:{...}}
+  org: [],               // {id, title, grade, memberId, parentId}
+  decorations: []        // {id, memberId, type, title, motif, date, signer, ref}
+};
+
+/* ---------------- Utilitaires ---------------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=> t.classList.remove("show"), 2600);
+}
+
+function refCode(prefix){
+  const L = () => "ABCDEFGHJKLMNPQRSTUVWXYZ"[Math.floor(Math.random()*24)];
+  const D = () => Math.floor(Math.random()*10);
+  return `${prefix}-${L()}${L()}${D()}${D()}-${D()}${D()}${L()}${D()}`;
+}
+
+/* Génère un matricule selon le format de guilde :
+   0 = chiffre aléatoire, A = lettre aléatoire, le reste est conservé.
+   Réessaie en cas de collision avec un matricule existant. */
+function genMatricule(){
+  const cfg = state.guild.matricule || { prefix:"", pattern:"000-AAAA-0000" };
+  const AZ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const roll = () => (cfg.prefix || "") + (cfg.pattern || "").split("").map(ch =>
+    ch === "0" ? Math.floor(Math.random()*10)
+    : ch === "A" ? AZ[Math.floor(Math.random()*26)]
+    : ch
+  ).join("");
+  let mat = roll();
+  for(let i = 0; i < 50 && state.members.some(m => m.matricule === mat); i++) mat = roll();
+  return mat;
+}
+
+function fmtDate(iso){
+  if(!iso) return "—";
+  const d = new Date(iso + "T00:00:00");
+  if(isNaN(d)) return iso;
+  return d.toLocaleDateString("fr-FR", { day:"2-digit", month:"long", year:"numeric" });
+}
+
+function getMember(id){ return state.members.find(m => m.id === id) || null; }
+function getShip(id){ return state.ships.find(s => s.id === id) || null; }
+function memberShips(id){ return state.ships.filter(s => s.ownerId === id); }
+function memberDecorations(id){ return state.decorations.filter(d => d.memberId === id); }
+function memberOrgPositions(id){ return state.org.filter(n => n.memberId === id); }
+
+function initials(pseudo){
+  return (pseudo || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0,2).toUpperCase();
+}
+
+function avatarHTML(m, extraClass=""){
+  if(m && m.avatar) return `<div class="avatar ${extraClass}"><img src="${m.avatar}" alt=""></div>`;
+  return `<div class="avatar ${extraClass}">${esc(initials(m ? m.pseudo : "?"))}</div>`;
+}
+
+function readImageFile(input, cb){
+  const f = input.files && input.files[0];
+  if(!f) return cb(null);
+  const r = new FileReader();
+  r.onload = () => cb(r.result);
+  r.readAsDataURL(f);
+}
+
+/* Remplit un <select> avec la liste des membres.
+   opts: { emptyLabel, allowCreate } */
+function fillMemberSelect(sel, selectedId, opts={}){
+  const cur = selectedId !== undefined ? selectedId : sel.value;
+  let html = `<option value="">${esc(opts.emptyLabel || "— Sélectionner un membre —")}</option>`;
+  state.members
+    .slice().sort((a,b)=> a.pseudo.localeCompare(b.pseudo,"fr"))
+    .forEach(m => {
+      html += `<option value="${m.id}" ${m.id===cur?"selected":""}>${esc(m.pseudo)}${m.grade?` — ${esc(m.grade)}`:""}</option>`;
+    });
+  if(opts.allowCreate) html += `<option value="__new__">+ Créer un nouveau membre…</option>`;
+  sel.innerHTML = html;
+}
+
+/* ---------------- Ajout / création de membres (utilisé par tous les onglets) ---------------- */
+function addMember(data, opts={}){
+  const m = {
+    id: uid(),
+    pseudo: (data.pseudo || "").trim(),
+    grade: (data.grade || "").trim(),
+    faction: (data.faction || "").trim(),
+    joined: data.joined || "",
+    avatar: data.avatar || null
+  };
+  if(!m.pseudo) return null;
+  state.members.push(m);
+  if(!opts.silent) toast(`Membre « ${m.pseudo} » ajouté au registre.`);
+  return m;
+}
+
+/* Depuis un autre onglet : demande un pseudo, crée le membre, prévient. */
+function promptNewMember(defaults={}){
+  const pseudo = prompt("Pseudo du nouveau membre :");
+  if(!pseudo || !pseudo.trim()) return null;
+  const existing = state.members.find(m => m.pseudo.toLowerCase() === pseudo.trim().toLowerCase());
+  if(existing){ toast(`« ${existing.pseudo} » existe déjà — membre existant utilisé.`); return existing; }
+  const m = addMember({ pseudo, grade: defaults.grade || "" }, {silent:true});
+  toast(`« ${m.pseudo} » créé et ajouté à l'onglet Membres.`);
+  return m;
+}
+
+/* ---------------- Rendu global ---------------- */
+function refreshAll(){
+  applyTheme();
+  renderMembers();
+  renderOrg();
+  renderShipForm();
+  renderShipCard();
+  renderFleet();
+  renderPilot();
+  renderCertForm();
+  renderCertificate();
+  renderDecoList();
+}
+
+function applyTheme(){
+  document.documentElement.style.setProperty("--accent", state.guild.accent || "#e2ab4a");
+  $("#header-guild-name").textContent = state.guild.name || "Guilde Hub";
+  $("#header-guild-motto").textContent = state.guild.motto || "";
+  const lg = $("#header-logo");
+  lg.innerHTML = state.guild.logo ? `<img src="${state.guild.logo}" alt="logo">` : `<span>LOGO</span>`;
+}
+
+function guildLogoHTML(){
+  return state.guild.logo
+    ? `<div class="logo"><img src="${state.guild.logo}" alt=""></div>`
+    : `<div class="logo"><span>LOGO</span></div>`;
+}
+
+/* ---------------- Onglets ---------------- */
+$("#tabs").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-tab]");
+  if(!btn) return;
+  $$("#tabs button").forEach(b => b.classList.toggle("active", b === btn));
+  $$("section.tab").forEach(s => s.classList.toggle("active", s.id === "tab-" + btn.dataset.tab));
+});
+
+/* =====================================================================
+   ONGLET 1 — MEMBRES
+   ===================================================================== */
+let editingMemberId = null;
+let memberAvatarData = null;
+
+$("#m-avatar").addEventListener("change", () => readImageFile($("#m-avatar"), d => memberAvatarData = d));
+
+/* ---- Champs personnalisés (libellé + valeur, illimités) ---- */
+$("#m-extra-add").addEventListener("click", () => addExtraRow());
+$("#m-mat-gen").addEventListener("click", () => {
+  $("#m-mat").value = genMatricule();
+});
+
+function addExtraRow(k = "", v = ""){
+  const row = document.createElement("div");
+  row.className = "extra-row";
+  row.innerHTML = `
+    <input type="text" class="extra-k" placeholder="Libellé (ex : Fuseau horaire)" value="${esc(k)}" autocomplete="off">
+    <input type="text" class="extra-v" placeholder="Valeur (ex : UTC+1)" value="${esc(v)}" autocomplete="off">
+    <button type="button" title="Retirer ce champ">✕</button>`;
+  row.querySelector("button").addEventListener("click", () => row.remove());
+  $("#m-extra").appendChild(row);
+}
+function collectExtras(){
+  return $$("#m-extra .extra-row")
+    .map(r => ({ k: r.querySelector(".extra-k").value.trim(), v: r.querySelector(".extra-v").value.trim() }))
+    .filter(x => x.k || x.v);
+}
+function fillExtras(list){
+  $("#m-extra").innerHTML = "";
+  (list || []).forEach(x => addExtraRow(x.k, x.v));
+}
+
+$("#m-save").addEventListener("click", () => {
+  const pseudo = $("#m-pseudo").value.trim();
+  if(!pseudo){ toast("Le pseudo est obligatoire."); return; }
+  if(editingMemberId){
+    const m = getMember(editingMemberId);
+    if(m){
+      m.pseudo = pseudo;
+      m.grade = $("#m-grade").value.trim();
+      m.faction = $("#m-faction").value.trim();
+      m.joined = $("#m-joined").value;
+      m.matricule = $("#m-mat").value.trim();
+      m.discord = $("#m-discord").value.trim();
+      m.rsi = $("#m-rsi").value.trim();
+      m.extra = collectExtras();
+      if(memberAvatarData) m.avatar = memberAvatarData;
+      toast(`Fiche de « ${m.pseudo} » mise à jour.`);
+    }
+    cancelMemberEdit();
+  } else {
+    const dup = state.members.find(m => m.pseudo.toLowerCase() === pseudo.toLowerCase());
+    if(dup){ toast(`Un membre nommé « ${dup.pseudo} » existe déjà.`); return; }
+    const m = addMember({
+      pseudo,
+      grade: $("#m-grade").value,
+      faction: $("#m-faction").value,
+      joined: $("#m-joined").value,
+      avatar: memberAvatarData
+    });
+    if(m){
+      m.matricule = $("#m-mat").value.trim();
+      m.discord = $("#m-discord").value.trim();
+      m.rsi = $("#m-rsi").value.trim();
+      m.extra = collectExtras();
+    }
+    resetMemberForm();
+  }
+  refreshAll();
+});
+
+$("#m-cancel").addEventListener("click", () => { cancelMemberEdit(); });
+
+function resetMemberForm(){
+  ["m-pseudo","m-mat","m-grade","m-faction","m-joined","m-discord","m-rsi"].forEach(id => $("#"+id).value = "");
+  $("#m-extra").innerHTML = "";
+  $("#m-avatar").value = "";
+  memberAvatarData = null;
+}
+function cancelMemberEdit(){
+  editingMemberId = null;
+  resetMemberForm();
+  $("#member-form-title").textContent = "Nouveau membre";
+  $("#m-save").textContent = "Ajouter le membre";
+  $("#m-cancel").style.display = "none";
+}
+function startMemberEdit(id){
+  const m = getMember(id); if(!m) return;
+  editingMemberId = id;
+  $("#m-pseudo").value = m.pseudo;
+  $("#m-mat").value = m.matricule || "";
+  $("#m-grade").value = m.grade;
+  $("#m-faction").value = m.faction;
+  $("#m-joined").value = m.joined;
+  $("#m-discord").value = m.discord || "";
+  $("#m-rsi").value = m.rsi || "";
+  fillExtras(m.extra);
+  memberAvatarData = null;
+  $("#member-form-title").textContent = "Modifier : " + m.pseudo;
+  $("#m-save").textContent = "Enregistrer";
+  $("#m-cancel").style.display = "";
+  $("#tab-members").scrollIntoView({behavior:"smooth"});
+}
+function deleteMember(id){
+  const m = getMember(id); if(!m) return;
+  const nbShips = memberShips(id).length, nbDeco = memberDecorations(id).length;
+  let msg = `Supprimer « ${m.pseudo} » du registre ?`;
+  if(nbShips || nbDeco) msg += `\n(${nbShips} vaisseau(x) seront désassociés, ${nbDeco} décoration(s) supprimée(s).)`;
+  if(!confirm(msg)) return;
+  state.members = state.members.filter(x => x.id !== id);
+  state.ships.forEach(s => { if(s.ownerId === id) s.ownerId = ""; });
+  state.org.forEach(n => { if(n.memberId === id) n.memberId = ""; });
+  state.decorations = state.decorations.filter(d => d.memberId !== id);
+  if(editingMemberId === id) cancelMemberEdit();
+  toast(`« ${m.pseudo} » supprimé.`);
+  refreshAll();
+}
+
+$("#m-search").addEventListener("input", renderMembers);
+$("#m-sort").addEventListener("change", renderMembers);
+
+/* Hiérarchie des grades connus (du plus élevé au plus bas) ;
+   les grades non listés sont triés alphabétiquement après. */
+const GRADE_ORDER = ["Amiral","Vice-Amiral","Commandant","Capitaine","Lieutenant","Sergent","Vétéran","Membre","Recrue"];
+function gradeRank(g){
+  const i = GRADE_ORDER.findIndex(x => x.toLowerCase() === (g||"").trim().toLowerCase());
+  return i === -1 ? GRADE_ORDER.length : i;
+}
+
+function memberComparator(mode){
+  const byPseudo = (a,b) => a.pseudo.localeCompare(b.pseudo, "fr");
+  switch(mode){
+    case "grade":
+      return (a,b) => (gradeRank(a.grade) - gradeRank(b.grade))
+        || (a.grade||"").localeCompare(b.grade||"", "fr")
+        || byPseudo(a,b);
+    case "joined-asc":
+      // Sans date → en fin de liste
+      return (a,b) => ((a.joined||"9999") > (b.joined||"9999") ? 1 : (a.joined||"9999") < (b.joined||"9999") ? -1 : 0) || byPseudo(a,b);
+    case "joined-desc":
+      return (a,b) => ((a.joined||"") < (b.joined||"") ? 1 : (a.joined||"") > (b.joined||"") ? -1 : 0) || byPseudo(a,b);
+    case "ships":
+      return (a,b) => (memberShips(b.id).length - memberShips(a.id).length) || byPseudo(a,b);
+    case "decos":
+      return (a,b) => (memberDecorations(b.id).length - memberDecorations(a.id).length) || byPseudo(a,b);
+    default:
+      return byPseudo;
+  }
+}
+
+function renderMembers(){
+  const q = ($("#m-search").value || "").toLowerCase();
+  const list = state.members
+    .filter(m => !q || [m.pseudo, m.grade, m.faction].join(" ").toLowerCase().includes(q))
+    .sort(memberComparator($("#m-sort").value));
+  $("#member-count").textContent = state.members.length + (state.members.length > 1 ? " membres" : " membre");
+  const box = $("#member-list");
+  if(!list.length){
+    box.innerHTML = `<div class="member-row" style="justify-content:center;color:var(--muted)">
+      ${state.members.length ? "Aucun résultat pour cette recherche." : "Aucun membre pour l'instant — ajoutez-en un via le formulaire."}
+    </div>`;
+    return;
+  }
+  box.innerHTML = list.map(m => `
+    <div class="member-row">
+      ${avatarHTML(m)}
+      <div class="who">
+        <b>${esc(m.pseudo)}</b>
+        <div class="meta">
+          ${m.matricule ? `<span>${esc(m.matricule)}</span>` : ""}
+          <span>${esc(m.grade || "Sans grade")}</span>
+          ${m.faction ? `<span>${esc(m.faction)}</span>` : ""}
+          ${m.discord ? `<span>Discord : ${esc(m.discord)}</span>` : ""}
+          ${m.joined ? `<span>Depuis le ${fmtDate(m.joined)}</span>` : ""}
+          <span>${memberShips(m.id).length} vsx · ${memberDecorations(m.id).length} déco</span>
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn small" data-act="edit" data-id="${m.id}">Modifier</button>
+        <button class="btn small" data-act="pdf" data-id="${m.id}">Export complet PDF</button>
+        <button class="btn small danger" data-act="del" data-id="${m.id}">✕</button>
+      </div>
+    </div>`).join("");
+}
+
+$("#member-list").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-act]");
+  if(!btn) return;
+  const { act, id } = btn.dataset;
+  if(act === "edit") startMemberEdit(id);
+  else if(act === "del") deleteMember(id);
+  else if(act === "pdf") exportMemberPDF(id);
+});
+
+/* =====================================================================
+   ONGLET 2 — ORGANIGRAMME
+   ===================================================================== */
+let selectedChipId = null;   // sélection tactile
+let openAssignNodeId = null; // case dont le menu d'assignation est ouvert
+
+function fillOrgParentSelect(){
+  const sel = $("#o-parent");
+  let html = `<option value="">— Racine —</option>`;
+  state.org.forEach(n => { html += `<option value="${n.id}">${esc(n.title)}</option>`; });
+  sel.innerHTML = html;
+}
+
+$("#o-add").addEventListener("click", () => {
+  const title = $("#o-title").value.trim();
+  if(!title){ toast("Donnez un intitulé à la position."); return; }
+  state.org.push({ id: uid(), title, grade: $("#o-grade").value.trim(), memberId: "", parentId: $("#o-parent").value || "" });
+  $("#o-title").value = ""; $("#o-grade").value = "";
+  toast(`Position « ${title} » créée.`);
+  refreshAll();
+});
+
+function assignMemberToNode(nodeId, memberId){
+  const node = state.org.find(n => n.id === nodeId); if(!node) return;
+  node.memberId = memberId;
+  selectedChipId = null;
+  openAssignNodeId = null;
+  const m = getMember(memberId);
+  if(m) toast(`« ${m.pseudo} » assigné : ${node.title}.`);
+  refreshAll();
+}
+
+function renderOrgNode(node){
+  const m = getMember(node.memberId);
+  const children = state.org.filter(n => n.parentId === node.id);
+  let slot;
+  if(m){
+    slot = `<div class="pos-member">${avatarHTML(m)}<b>${esc(m.pseudo)}</b></div>`;
+  } else if(openAssignNodeId === node.id){
+    slot = `<select class="assign-select" data-node="${node.id}" style="width:100%;min-height:40px;font-size:15px;background:var(--bg);border:1px solid var(--accent);color:var(--text)">
+      ${buildAssignOptions()}</select>`;
+  } else {
+    slot = `<div class="pos-empty" data-node="${node.id}">Assigner…</div>`;
+  }
+  return `
+    <div class="org-branch">
+      <div class="org-node" data-node="${node.id}">
+        <div class="node-tools">
+          ${m ? `<button title="Retirer le membre" data-org-act="unassign" data-node="${node.id}">⤺</button>` : ""}
+          <button title="Supprimer la position" data-org-act="delete" data-node="${node.id}">✕</button>
+        </div>
+        <div class="pos-title">${esc(node.title)}</div>
+        <div class="pos-grade">${esc(node.grade || "\u00A0")}</div>
+        ${slot}
+      </div>
+      ${children.length ? `<div class="org-children">${children.map(renderOrgNode).join("")}</div>` : ""}
+    </div>`;
+}
+
+function buildAssignOptions(){
+  let html = `<option value="">— Choisir —</option>`;
+  state.members.slice().sort((a,b)=>a.pseudo.localeCompare(b.pseudo,"fr"))
+    .forEach(mm => html += `<option value="${mm.id}">${esc(mm.pseudo)}${mm.grade?` — ${esc(mm.grade)}`:""}</option>`);
+  html += `<option value="__new__">+ Créer un nouveau membre…</option>`;
+  return html;
+}
+
+function renderOrg(){
+  fillOrgParentSelect();
+  const roots = state.org.filter(n => !n.parentId || !state.org.some(p => p.id === n.parentId));
+  $("#org-tree").innerHTML = roots.length
+    ? roots.map(renderOrgNode).join("")
+    : `<div style="color:var(--muted);padding:20px 6px">Aucune position — créez la première (ex : « Commandement ») avec le formulaire ci-dessus.</div>`;
+
+  // Réserve : membres non assignés d'abord, assignés grisés ensuite
+  const assigned = new Set(state.org.map(n => n.memberId).filter(Boolean));
+  const chips = state.members.slice().sort((a,b)=>a.pseudo.localeCompare(b.pseudo,"fr")).map(m => `
+    <div class="chip ${selectedChipId===m.id ? "selected":""}" draggable="true" data-chip="${m.id}"
+         style="${assigned.has(m.id) ? "opacity:.5" : ""}">
+      ${avatarHTML(m)}<span>${esc(m.pseudo)}</span>
+    </div>`).join("");
+  $("#org-chips").innerHTML = chips || `<span style="color:var(--muted)">Aucun membre dans le registre.</span>`;
+  $("#org-hint").textContent = selectedChipId
+    ? `« ${getMember(selectedChipId)?.pseudo} » sélectionné — touchez une position pour l'assigner.`
+    : "Glissez un membre sur une position, ou touchez-le puis touchez une position.";
+
+  bindOrgEvents();
+}
+
+function bindOrgEvents(){
+  // Drag & drop souris
+  $$("#org-chips .chip").forEach(chip => {
+    chip.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", chip.dataset.chip);
+      e.dataTransfer.effectAllowed = "move";
+    });
+    // Sélection tactile / clic
+    chip.addEventListener("click", () => {
+      selectedChipId = (selectedChipId === chip.dataset.chip) ? null : chip.dataset.chip;
+      renderOrg();
+    });
+  });
+
+  $$("#org-tree .org-node").forEach(nodeEl => {
+    nodeEl.addEventListener("dragover", e => { e.preventDefault(); nodeEl.classList.add("drop-hover"); });
+    nodeEl.addEventListener("dragleave", () => nodeEl.classList.remove("drop-hover"));
+    nodeEl.addEventListener("drop", e => {
+      e.preventDefault();
+      nodeEl.classList.remove("drop-hover");
+      const mid = e.dataTransfer.getData("text/plain");
+      if(mid) assignMemberToNode(nodeEl.dataset.node, mid);
+    });
+    // Assignation par sélection tactile
+    nodeEl.addEventListener("click", e => {
+      if(e.target.closest("[data-org-act]") || e.target.closest("select")) return;
+      if(selectedChipId){ assignMemberToNode(nodeEl.dataset.node, selectedChipId); return; }
+      const empty = e.target.closest(".pos-empty");
+      if(empty){ openAssignNodeId = empty.dataset.node; renderOrg(); }
+    });
+  });
+
+  $$("#org-tree .assign-select").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const nodeId = sel.dataset.node;
+      if(sel.value === "__new__"){
+        const node = state.org.find(n => n.id === nodeId);
+        const m = promptNewMember({ grade: node ? node.grade : "" });
+        if(m) assignMemberToNode(nodeId, m.id);
+        else { openAssignNodeId = null; renderOrg(); }
+      } else if(sel.value){
+        assignMemberToNode(nodeId, sel.value);
+      } else {
+        openAssignNodeId = null; renderOrg();
+      }
+    });
+    sel.focus();
+  });
+
+  $$("#org-tree [data-org-act]").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const nodeId = btn.dataset.node;
+      const node = state.org.find(n => n.id === nodeId); if(!node) return;
+      if(btn.dataset.orgAct === "unassign"){
+        node.memberId = "";
+        refreshAll();
+      } else if(btn.dataset.orgAct === "delete"){
+        const hasChildren = state.org.some(n => n.parentId === nodeId);
+        if(!confirm(`Supprimer la position « ${node.title} » ?${hasChildren ? "\nSes positions rattachées remonteront d'un niveau." : ""}`)) return;
+        state.org.filter(n => n.parentId === nodeId).forEach(n => n.parentId = node.parentId || "");
+        state.org = state.org.filter(n => n.id !== nodeId);
+        refreshAll();
+      }
+    });
+  });
+}
+
+/* =====================================================================
+   ONGLET 3 — FICHES DE VAISSEAU
+   ===================================================================== */
+let editingShipId = null;
+
+const SHIP_FIELDS = ["name","model","role"];
+const LOADOUT_FIELDS = ["armes","missiles","boucliers","generateur","refroidisseurs","quantum"];
+const LOADOUT_LABELS = { armes:"Armes", missiles:"Missiles", boucliers:"Boucliers", generateur:"Générateur", refroidisseurs:"Refroidisseurs", quantum:"Moteur quantum" };
+
+function renderShipForm(){
+  // Sélecteur de fiche existante
+  const sel = $("#s-edit");
+  let html = `<option value="">— Nouvelle fiche —</option>`;
+  state.ships.forEach(s => {
+    const o = getMember(s.ownerId);
+    html += `<option value="${s.id}" ${s.id===editingShipId?"selected":""}>${esc(s.name)}${o?` (${esc(o.pseudo)})`:""}</option>`;
+  });
+  sel.innerHTML = html;
+  // Propriétaire depuis le registre central
+  fillMemberSelect($("#s-owner"), undefined, { emptyLabel:"— Aucun propriétaire —", allowCreate:true });
+  $("#ship-form-title").textContent = editingShipId ? "Modifier la fiche" : "Nouvelle fiche";
+  $("#s-save").textContent = editingShipId ? "Enregistrer les modifications" : "Enregistrer la fiche";
+  $("#s-delete").style.display = editingShipId ? "" : "none";
+}
+
+$("#s-edit").addEventListener("change", () => {
+  editingShipId = $("#s-edit").value || null;
+  const s = getShip(editingShipId);
+  if(s){
+    $("#s-name").value = s.name; $("#s-model").value = s.model; $("#s-role").value = s.role;
+    $("#s-status").value = s.status;
+    LOADOUT_FIELDS.forEach(f => $("#s-"+f).value = s.loadout[f] || "");
+    renderShipForm();
+    $("#s-owner").value = s.ownerId || "";
+  } else {
+    ["s-name","s-model","s-role"].forEach(id => $("#"+id).value = "");
+    LOADOUT_FIELDS.forEach(f => $("#s-"+f).value = "");
+    $("#s-status").value = "assure";
+    renderShipForm();
+    $("#s-owner").value = "";
+  }
+  renderShipCard();
+});
+
+$("#s-owner").addEventListener("change", () => {
+  if($("#s-owner").value === "__new__"){
+    const m = promptNewMember();
+    refreshAll();
+    $("#s-owner").value = m ? m.id : "";
+  }
+  renderShipCard();
+});
+
+["s-name","s-model","s-role","s-status", ...LOADOUT_FIELDS.map(f=>"s-"+f)].forEach(id => {
+  $("#"+id).addEventListener("input", renderShipCard);
+});
+
+$("#s-save").addEventListener("click", () => {
+  const name = $("#s-name").value.trim();
+  if(!name){ toast("Le nom du vaisseau est obligatoire."); return; }
+  const data = {
+    name,
+    model: $("#s-model").value.trim(),
+    role: $("#s-role").value.trim(),
+    ownerId: $("#s-owner").value === "__new__" ? "" : $("#s-owner").value,
+    status: $("#s-status").value,
+    loadout: {}
+  };
+  LOADOUT_FIELDS.forEach(f => data.loadout[f] = $("#s-"+f).value.trim());
+  if(editingShipId){
+    Object.assign(getShip(editingShipId), data);
+    toast(`Fiche « ${name} » mise à jour.`);
+  } else {
+    const ship = { id: uid(), ...data };
+    state.ships.push(ship);
+    editingShipId = ship.id;
+    toast(`« ${name} » enregistré — visible dans l'onglet Flotte.`);
+  }
+  refreshAll();
+});
+
+$("#s-delete").addEventListener("click", () => {
+  const s = getShip(editingShipId); if(!s) return;
+  if(!confirm(`Supprimer la fiche « ${s.name} » ?`)) return;
+  state.ships = state.ships.filter(x => x.id !== editingShipId);
+  editingShipId = null;
+  $("#s-edit").value = "";
+  $("#s-edit").dispatchEvent(new Event("change"));
+  refreshAll();
+});
+
+function shipCardHTML(s, forExport=false){
+  const owner = getMember(s.ownerId);
+  const specs = LOADOUT_FIELDS
+    .filter(f => s.loadout[f])
+    .map(f => `<div class="spec"><span>${LOADOUT_LABELS[f]}</span><b>${esc(s.loadout[f])}</b></div>`)
+    .join("");
+  return `
+    <div class="doc-head">
+      ${guildLogoHTML()}
+      <div class="t"><b>${esc(state.guild.name)}</b><span>FICHE TECHNIQUE — VAISSEAU</span></div>
+      <div class="doc-ref">${esc(s.ref || "REF EN ATTENTE")}<br>${STATUS_LABELS[s.status] || ""}</div>
+    </div>
+    <div class="body">
+      <div class="doc-title">${esc(s.name || "Sans nom")}</div>
+      <div class="doc-subtitle">${esc(s.model || "Modèle non renseigné")}${s.role ? " · " + esc(s.role) : ""}</div>
+      <div class="spec-list">
+        <div class="spec"><span>Propriétaire</span><b>${owner ? esc(owner.pseudo) : "—"}</b></div>
+        <div class="spec"><span>Statut</span><b>${STATUS_LABELS[s.status] || "—"}</b></div>
+        ${specs || `<div class="spec"><span>Loadout</span><b>Non renseigné</b></div>`}
+      </div>
+    </div>
+    <div class="doc-foot"><span>${esc(state.guild.motto || "")}</span><span>SC · GUILDE HUB</span></div>`;
+}
+
+function currentShipDraft(){
+  const d = {
+    name: $("#s-name").value.trim(),
+    model: $("#s-model").value.trim(),
+    role: $("#s-role").value.trim(),
+    ownerId: $("#s-owner").value === "__new__" ? "" : $("#s-owner").value,
+    status: $("#s-status").value,
+    loadout: {},
+    ref: editingShipId ? (getShip(editingShipId)?.ref) : null
+  };
+  LOADOUT_FIELDS.forEach(f => d.loadout[f] = $("#s-"+f).value.trim());
+  if(!d.ref) d.ref = "VSX-" + (d.name || "----").replace(/\s+/g,"").slice(0,4).toUpperCase();
+  return d;
+}
+
+function renderShipCard(){
+  $("#ship-card").innerHTML = shipCardHTML(currentShipDraft());
+}
+
+$("#s-export-png").addEventListener("click", () => {
+  const d = currentShipDraft();
+  exportElementPNG($("#ship-card"), `vaisseau-${(d.name||"fiche").replace(/\s+/g,"-").toLowerCase()}.png`);
+});
+
+/* =====================================================================
+   ONGLET 4 — FLOTTE / ROSTER
+   ===================================================================== */
+$("#fleet-filter").addEventListener("change", renderFleet);
+
+function renderFleet(){
+  const filter = $("#fleet-filter").value;
+  const counts = { assure:0, reparation:0, hs:0, perdu:0 };
+  state.ships.forEach(s => { if(counts[s.status] !== undefined) counts[s.status]++; });
+  $("#fleet-stats").innerHTML = `
+    <div class="stat"><b>${state.ships.length}</b> vaisseaux</div>
+    <div class="stat"><b style="color:var(--ok)">${counts.assure}</b> assurés</div>
+    <div class="stat"><b style="color:var(--warn)">${counts.reparation}</b> en réparation</div>
+    <div class="stat"><b style="color:var(--off)">${counts.hs}</b> hors service</div>
+    <div class="stat"><b style="color:var(--bad)">${counts.perdu}</b> perdus</div>`;
+
+  const ships = state.ships.filter(s => !filter || s.status === filter);
+  const grid = $("#fleet-grid");
+  if(!ships.length){
+    grid.innerHTML = `<div class="fleet-card" style="color:var(--muted)">
+      ${state.ships.length ? "Aucun vaisseau avec ce statut." : "Aucun vaisseau — créez une fiche dans l'onglet « Fiches vaisseau »."}
+    </div>`;
+    return;
+  }
+  grid.innerHTML = ships.map(s => {
+    const o = getMember(s.ownerId);
+    return `
+    <div class="fleet-card hud">
+      <div class="ship-name">${esc(s.name)}</div>
+      <div class="ship-model">${esc(s.model || "Modèle non renseigné")}${s.role ? " · " + esc(s.role) : ""}</div>
+      <div class="fleet-meta">
+        ${o ? avatarHTML(o) : ""}
+        <span>${o ? esc(o.pseudo) : "Sans propriétaire"}</span>
+        <span class="status ${s.status}" style="margin-left:auto">${STATUS_LABELS[s.status]}</span>
+      </div>
+      <div class="fleet-meta no-print">
+        <select data-fleet-status="${s.id}">
+          ${Object.entries(STATUS_LABELS).map(([k,v]) => `<option value="${k}" ${s.status===k?"selected":""}>${v}</option>`).join("")}
+        </select>
+        <button class="btn small" data-fleet-edit="${s.id}">Ouvrir la fiche</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  $$("#fleet-grid [data-fleet-status]").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const s = getShip(sel.dataset.fleetStatus);
+      if(s){ s.status = sel.value; toast(`« ${s.name} » : ${STATUS_LABELS[s.status]}.`); refreshAll(); }
+    });
+  });
+  $$("#fleet-grid [data-fleet-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      editingShipId = btn.dataset.fleetEdit;
+      renderShipForm();
+      $("#s-edit").value = editingShipId;
+      $("#s-edit").dispatchEvent(new Event("change"));
+      $$("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === "ships"));
+      $$("section.tab").forEach(sec => sec.classList.toggle("active", sec.id === "tab-ships"));
+    });
+  });
+}
+
+/* =====================================================================
+   ONGLET 5 — CARTES DE PROFIL PILOTE
+   ===================================================================== */
+$("#p-member").addEventListener("change", () => { syncFxControls(); renderPilotCardOnly(); });
+$("#p-callsign").addEventListener("input", renderPilotCardOnly);
+$("#p-fx").addEventListener("change", () => {
+  const m = getMember($("#p-member").value);
+  if(m) m.cardFx = $("#p-fx").value; // mémorisé sur la fiche → inclus dans l'export JSON
+  renderPilotCardOnly();
+});
+$("#p-sheen").addEventListener("change", () => {
+  const m = getMember($("#p-member").value);
+  if(m) m.cardSheen = $("#p-sheen").checked;
+  renderPilotCardOnly();
+});
+
+const FX_LABELS = { standard:"", bronze:"Bronze", argent:"Argent", or:"Or", holo:"Holo", furtif:"Furtif" };
+
+/* Tier automatique selon le nombre de décorations */
+function autoTier(memberId){
+  const n = memberDecorations(memberId).length;
+  if(n >= 7) return "holo";
+  if(n >= 5) return "or";
+  if(n >= 3) return "argent";
+  if(n >= 1) return "bronze";
+  return "standard";
+}
+function effectiveFx(m){
+  const fx = m.cardFx || "auto";
+  return fx === "auto" ? autoTier(m.id) : fx;
+}
+
+function syncFxControls(){
+  const m = getMember($("#p-member").value);
+  $("#p-fx").value = (m && m.cardFx) || "auto";
+  $("#p-sheen").checked = m ? (m.cardSheen !== false) : true;
+}
+
+function renderPilot(){
+  fillMemberSelect($("#p-member"), undefined, { emptyLabel:"— Sélectionner un pilote —" });
+  syncFxControls();
+  renderPilotCardOnly();
+}
+function renderPilotCardOnly(){
+  const card = $("#pilot-card");
+  const m = getMember($("#p-member").value);
+  card.className = "pilot-card hud"; // reset des effets
+  let sheen = false;
+  if(m){
+    const fx = effectiveFx(m);
+    if(fx !== "standard") card.classList.add("fx-" + fx);
+    sheen = (fx === "holo" || fx === "or") && m.cardSheen !== false;
+  }
+  card.innerHTML = pilotCardHTML($("#p-member").value, $("#p-callsign").value.trim())
+    + (sheen ? `<div class="holo-sheen"></div>` : "");
+}
+
+function pilotCardHTML(memberId, callsign){
+  const m = getMember(memberId);
+  if(!m){
+    return `<div class="body" style="padding:30px;text-align:center;color:var(--muted)">
+      Sélectionnez un membre du registre pour générer sa carte.</div>`;
+  }
+  const ships = memberShips(m.id);
+  const decos = memberDecorations(m.id);
+  const positions = memberOrgPositions(m.id);
+  return `
+    <div class="doc-head">
+      ${guildLogoHTML()}
+      <div class="t"><b>${esc(state.guild.name)}</b><span>CARTE DE PROFIL PILOTE</span></div>
+      <div class="doc-ref">${m.matricule ? esc(m.matricule) : "ID-" + esc(m.id.slice(-6).toUpperCase())}</div>
+    </div>
+    <div class="body">
+      <div class="id-block">
+        ${avatarHTML(m)}
+        <div class="id-fields">
+          <div class="doc-title">${esc(m.pseudo)}</div>
+          <div class="doc-subtitle" style="margin-bottom:0">${esc(m.grade || "Sans grade")}${m.faction ? " · " + esc(m.faction) : ""}${m.discord ? `<br>Discord : ${esc(m.discord)}` : ""}</div>
+          <div class="tag-line">
+            ${FX_LABELS[effectiveFx(m)] ? `<span class="tag fx-tag">Édition ${FX_LABELS[effectiveFx(m)]}</span>` : ""}
+            ${m.joined ? `<span class="tag">Depuis ${fmtDate(m.joined)}</span>` : ""}
+            ${positions.map(p => `<span class="tag">${esc(p.title)}</span>`).join("")}
+          </div>
+          <div class="prestige" title="Prestige : ${decos.length} décoration(s)">
+            ${Array.from({length:5}, (_,i) => i < Math.min(decos.length,5) ? "★" : "<i>★</i>").join("")}${decos.length > 5 ? ` +${decos.length-5}` : ""}
+          </div>
+        </div>
+      </div>
+      ${callsign ? `<div style="font-style:italic;color:var(--muted);margin-bottom:4px">« ${esc(callsign)} »</div>` : ""}
+      <h4>Vaisseaux</h4>
+      ${ships.length
+        ? `<ul>${ships.map(s => `<li><b>${esc(s.name)}</b><span>${esc(s.model || "")} · ${STATUS_LABELS[s.status]}</span></li>`).join("")}</ul>`
+        : `<div class="none">Aucun vaisseau enregistré.</div>`}
+      <h4>Décorations</h4>
+      ${decos.length
+        ? `<ul>${decos.map(d => `<li><b>${esc(d.title)}</b><span>${esc(d.type)} · ${fmtDate(d.date)}</span></li>`).join("")}</ul>`
+        : `<div class="none">Aucune décoration.</div>`}
+    </div>
+    <div class="doc-foot"><span>${esc(state.guild.motto || "")}</span><span>SC · GUILDE HUB</span></div>`;
+}
+
+$("#p-export-png").addEventListener("click", () => {
+  const m = getMember($("#p-member").value);
+  if(!m){ toast("Sélectionnez d'abord un membre."); return; }
+  exportElementPNG($("#pilot-card"), `pilote-${m.pseudo.replace(/\s+/g,"-").toLowerCase()}.png`);
+});
+
+/* ---------- Export GIF animé de la carte pilote ----------
+   Principe : l'animation CSS du reflet est mise en pause, puis on
+   capture N images en déplaçant manuellement le reflet, et gif.js
+   les assemble en GIF bouclé. Tout se passe dans le navigateur. */
+async function ensureGifWorker(){
+  // gif.js a besoin d'un worker ; on le récupère depuis le CDN et on
+  // le sert via un blob local (un worker ne peut pas être cross-origin).
+  if(window._gifWorkerURL) return window._gifWorkerURL;
+  const res = await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js");
+  if(!res.ok) throw new Error("worker");
+  window._gifWorkerURL = URL.createObjectURL(await res.blob());
+  return window._gifWorkerURL;
+}
+
+$("#p-export-gif").addEventListener("click", exportPilotGIF);
+
+async function exportPilotGIF(){
+  const m = getMember($("#p-member").value);
+  if(!m){ toast("Sélectionnez d'abord un membre."); return; }
+  const card = $("#pilot-card");
+  const sheen = card.querySelector(".holo-sheen");
+  if(!sheen){
+    toast("Cette carte n'a pas d'animation — choisissez un effet Or ou Holo avec le reflet activé (sinon, l'export PNG suffit).");
+    return;
+  }
+  if(typeof GIF === "undefined" || typeof html2canvas === "undefined"){
+    toast("Export GIF indisponible (librairie non chargée — vérifiez la connexion).");
+    return;
+  }
+  const btn = $("#p-export-gif");
+  btn.disabled = true;
+  const prev = { animation: sheen.style.animation, blend: sheen.style.mixBlendMode, opacity: sheen.style.opacity, pos: sheen.style.backgroundPosition };
+  try {
+    toast("Capture des images du GIF…");
+    await document.fonts.ready; // évite les textes/badges décalés dans la capture
+    const workerUrl = await ensureGifWorker();
+    const isMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
+    // Fluidité réglable (5–60 ips) : la boucle dure ~1,8 s quelle que soit la fluidité
+    const fps = Math.min(60, Math.max(5, parseInt($("#p-fps").value, 10) || 9));
+    const LOOP = 1.8;                                  // durée de la boucle (s)
+    const FRAMES = Math.max(4, Math.round(fps * LOOP));
+    const DELAY = Math.max(20, Math.round(1000 / fps)); // <20 ms mal géré par les lecteurs GIF
+    const scale = isMobile ? 1 : 1.5;    // GIF plus léger que le PNG
+    if(fps > 30) toast(`Capture de ${FRAMES} images à ${fps} ips — fichier lourd, patience…`);
+
+    // Fige l'animation et neutralise le blend-mode (mal supporté par la capture)
+    sheen.style.animation = "none";
+    sheen.style.mixBlendMode = "normal";
+    sheen.style.opacity = ".85";
+
+    const frames = [];
+    for(let i = 0; i < FRAMES; i++){
+      // Reproduit la trajectoire de l'animation CSS : 130% → -60%
+      sheen.style.backgroundPosition = (130 - 190 * i / FRAMES) + "% 0";
+      frames.push(await html2canvas(card, { scale, backgroundColor:"#0e131a", useCORS:true }));
+      toast(`Capture des images… ${i + 1}/${FRAMES}`);
+    }
+
+    toast("Encodage du GIF… 0 %");
+    const gif = new GIF({
+      workers: 2, quality: 8, workerScript: workerUrl,
+      width: frames[0].width, height: frames[0].height
+    });
+    frames.forEach(c => gif.addFrame(c, { delay: DELAY }));
+    gif.on("progress", p => toast("Encodage du GIF… " + Math.round(p * 100) + " %"));
+
+    await new Promise((resolve, reject) => {
+      gif.on("finished", blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `pilote-${m.pseudo.replace(/\s+/g,"-").toLowerCase()}.gif`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        resolve();
+      });
+      gif.on("abort", () => reject(new Error("abort")));
+      gif.render();
+    });
+    toast("GIF animé exporté.");
+  } catch(err){
+    toast("Échec de l'export GIF — réessayez, ou utilisez l'export PNG.");
+  } finally {
+    // Restaure l'animation CSS de l'aperçu
+    sheen.style.animation = prev.animation;
+    sheen.style.mixBlendMode = prev.blend;
+    sheen.style.opacity = prev.opacity;
+    sheen.style.backgroundPosition = prev.pos;
+    btn.disabled = false;
+  }
+}
+
+/* =====================================================================
+   ONGLET 6 — CERTIFICATS / DÉCORATIONS
+   ===================================================================== */
+let certRef = refCode("CERT");
+
+function renderCertForm(){
+  fillMemberSelect($("#c-member"), undefined, { emptyLabel:"— Sélectionner le récipiendaire —" });
+}
+
+["c-member","c-type","c-date","c-title","c-motif","c-signer"].forEach(id => {
+  $("#"+id).addEventListener("input", renderCertificate);
+  $("#"+id).addEventListener("change", renderCertificate);
+});
+$("#c-member").addEventListener("change", renderDecoList);
+
+function guildInitials(){
+  return (state.guild.name || "GH").split(/\s+/).map(w => w[0]).join("").slice(0,3).toUpperCase();
+}
+
+function certificateHTML(data){
+  const m = getMember(data.memberId);
+  return `
+  <div class="inner">
+    <div class="c-ref">${esc(data.ref)}</div>
+    <div class="c-guild">
+      ${state.guild.logo ? `<div class="logo"><img src="${state.guild.logo}" alt=""></div>` : ""}
+      <b>${esc(state.guild.name)}</b>
+    </div>
+    <div class="c-kind">${esc(data.type)} — document officiel</div>
+    <div class="c-title">${esc(data.title || "Intitulé de la décoration")}</div>
+    <div class="c-rule"></div>
+    <div class="c-body">Est décerné${data.type === "Médaille" ? "e" : ""} par le commandement à</div>
+    <div class="c-recipient">${m ? esc(m.pseudo) : "———"}</div>
+    <div class="c-grade">${m && m.grade ? esc(m.grade) : "\u00A0"}</div>
+    ${data.motif ? `<div class="c-motif">« ${esc(data.motif)} »</div>` : `<div class="c-motif" style="opacity:.4">Motif à renseigner</div>`}
+    <div class="c-foot">
+      <div class="seal"><b>${esc(guildInitials())}</b><span>sceau officiel</span></div>
+      <div class="c-date">Fait le ${fmtDate(data.date) === "—" ? "…" : fmtDate(data.date)}</div>
+      <div class="c-sig">
+        <div class="line">${esc(data.signer || "Signature du commandement")}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function currentCertDraft(){
+  return {
+    memberId: $("#c-member").value,
+    type: $("#c-type").value,
+    date: $("#c-date").value,
+    title: $("#c-title").value.trim(),
+    motif: $("#c-motif").value.trim(),
+    signer: $("#c-signer").value.trim(),
+    ref: certRef
+  };
+}
+
+function renderCertificate(){
+  $("#certificate").innerHTML = certificateHTML(currentCertDraft());
+}
+
+$("#c-award").addEventListener("click", () => {
+  const d = currentCertDraft();
+  const m = getMember(d.memberId);
+  if(!m){ toast("Sélectionnez le récipiendaire."); return; }
+  if(!d.title){ toast("L'intitulé de la décoration est obligatoire."); return; }
+  state.decorations.push({ id: uid(), ...d });
+  toast(`Décoration « ${d.title} » ajoutée à l'historique de ${m.pseudo}.`);
+  certRef = refCode("CERT"); // nouveau numéro pour le prochain document
+  refreshAll();
+});
+
+$("#c-export-png").addEventListener("click", () => {
+  const d = currentCertDraft();
+  exportElementPNG($("#certificate"), `certificat-${(d.title||"document").replace(/\s+/g,"-").toLowerCase()}.png`, {bg:"#f2ecdd"});
+});
+
+function renderDecoList(){
+  const selId = $("#c-member").value;
+  const decos = selId ? memberDecorations(selId) : state.decorations.slice();
+  const box = $("#deco-list");
+  if(!decos.length){
+    box.innerHTML = `<div class="deco-item" style="color:var(--muted)">${selId ? "Aucune décoration pour ce membre." : "Aucune décoration délivrée pour l'instant."}</div>`;
+    return;
+  }
+  box.innerHTML = decos.slice().reverse().map(d => {
+    const m = getMember(d.memberId);
+    return `<div class="deco-item">
+      <span class="d-type">${esc(d.type)}</span>
+      <b>${esc(d.title)}</b>
+      ${!selId && m ? `<span style="color:var(--muted)">— ${esc(m.pseudo)}</span>` : ""}
+      <span class="d-date">${fmtDate(d.date)}</span>
+      <button class="btn small danger no-print" data-deco-del="${d.id}" title="Retirer">✕</button>
+    </div>`;
+  }).join("");
+  $$("#deco-list [data-deco-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const d = state.decorations.find(x => x.id === btn.dataset.decoDel);
+      if(d && confirm(`Retirer « ${d.title} » de l'historique ?`)){
+        state.decorations = state.decorations.filter(x => x.id !== d.id);
+        refreshAll();
+      }
+    });
+  });
+}
+
+/* =====================================================================
+   EXPORTS — PNG (html2canvas), PDF membre (jsPDF), JSON global
+   ===================================================================== */
+function exportScale(){
+  // Échelle réduite sur mobile pour éviter les canvas trop lourds (Safari iOS)
+  const isMobile = Math.min(window.innerWidth, window.innerHeight) < 700;
+  return isMobile ? 1.5 : 2;
+}
+
+function exportElementPNG(el, filename, opts={}){
+  if(typeof html2canvas === "undefined"){ toast("Export indisponible (html2canvas non chargé)."); return; }
+  toast("Génération de l'image…");
+  // Attendre les polices web : sans ça, la capture mesure mal les textes (badges décalés)
+  document.fonts.ready.then(() => html2canvas(el, {
+    scale: exportScale(),
+    backgroundColor: opts.bg || "#0e131a",
+    useCORS: true
+  })).then(canvas => {
+    const a = document.createElement("a");
+    a.download = filename;
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+    toast("Image exportée.");
+  }).catch(() => toast("Échec de l'export image."));
+}
+
+/* ---------- Export complet PDF d'un membre ---------- */
+function dossierHTML(m){
+  const ships = memberShips(m.id);
+  const decos = memberDecorations(m.id);
+  const positions = memberOrgPositions(m.id);
+  const orgPath = positions.map(p => {
+    // Remonte la chaîne de commandement pour situer la position
+    const chain = [];
+    let cur = p;
+    while(cur){ chain.unshift(cur.title); cur = state.org.find(n => n.id === cur.parentId); }
+    return chain.join(" › ");
+  });
+  return `
+  <div class="dossier" id="dossier-tmp">
+    <div class="d-head">
+      ${state.guild.logo ? `<div class="logo"><img src="${state.guild.logo}" alt=""></div>` : ""}
+      <div><b>${esc(state.guild.name)}</b><span>${esc(state.guild.motto || "")}</span></div>
+      <div class="d-ref">DOSSIER PERSONNEL<br>${esc(refCode("DOS"))}<br>${new Date().toLocaleDateString("fr-FR")}</div>
+    </div>
+    <h2>${esc(m.pseudo)}</h2>
+    <div class="d-sub">${esc(m.grade || "Sans grade")}${m.faction ? " · " + esc(m.faction) : ""}${m.joined ? " · membre depuis le " + fmtDate(m.joined) : ""}</div>
+    <div class="d-id">
+      ${m.avatar ? `<div class="avatar"><img src="${m.avatar}" alt=""></div>` : `<div class="avatar">${esc(initials(m.pseudo))}</div>`}
+      <table>
+        ${m.matricule ? `<tr><th>Matricule</th><td>${esc(m.matricule)}</td></tr>` : ""}
+        <tr><th>Grade</th><td>${esc(m.grade || "—")}</td></tr>
+        <tr><th>Faction / division</th><td>${esc(m.faction || "—")}</td></tr>
+        <tr><th>Date d'entrée</th><td>${fmtDate(m.joined)}</td></tr>
+        ${m.discord ? `<tr><th>Discord</th><td>${esc(m.discord)}</td></tr>` : ""}
+        ${m.rsi ? `<tr><th>Handle RSI</th><td>${esc(m.rsi)}</td></tr>` : ""}
+        ${(m.extra || []).map(x => `<tr><th>${esc(x.k || "Info")}</th><td>${esc(x.v || "—")}</td></tr>`).join("")}
+        <tr><th>Vaisseaux</th><td>${ships.length}</td></tr>
+        <tr><th>Décorations</th><td>${decos.length}</td></tr>
+      </table>
+    </div>
+
+    <h3>Position dans l'organigramme</h3>
+    ${orgPath.length
+      ? `<table>${orgPath.map(p => `<tr><td>${esc(p)}</td></tr>`).join("")}</table>`
+      : `<p style="color:#6d6350;font-size:14px">Aucune position assignée.</p>`}
+
+    <h3>Vaisseaux</h3>
+    ${ships.length ? `<table>
+      <tr><th>Nom</th><th>Modèle</th><th>Statut</th><th>Loadout principal</th></tr>
+      ${ships.map(s => `<tr>
+        <td><b>${esc(s.name)}</b></td>
+        <td>${esc(s.model || "—")}</td>
+        <td>${STATUS_LABELS[s.status]}</td>
+        <td>${LOADOUT_FIELDS.filter(f => s.loadout[f]).map(f => `${LOADOUT_LABELS[f]} : ${esc(s.loadout[f])}`).join(" · ") || "—"}</td>
+      </tr>`).join("")}
+    </table>` : `<p style="color:#6d6350;font-size:14px">Aucun vaisseau enregistré.</p>`}
+
+    <h3>Décorations</h3>
+    ${decos.length ? `<table>
+      <tr><th>Type</th><th>Intitulé</th><th>Date</th><th>Motif</th></tr>
+      ${decos.map(d => `<tr>
+        <td>${esc(d.type)}</td><td><b>${esc(d.title)}</b></td>
+        <td>${fmtDate(d.date)}</td><td>${esc(d.motif || "—")}</td>
+      </tr>`).join("")}
+    </table>` : `<p style="color:#6d6350;font-size:14px">Aucune décoration.</p>`}
+
+    <div class="d-foot">
+      <span>Document généré par Guilde Hub — usage interne</span>
+      <span>${esc(guildInitials())} // SC</span>
+    </div>
+  </div>`;
+}
+
+function exportMemberPDF(memberId){
+  const m = getMember(memberId); if(!m) return;
+  if(typeof html2canvas === "undefined" || !window.jspdf){ toast("Export PDF indisponible (librairies non chargées)."); return; }
+  toast(`Génération du dossier PDF de ${m.pseudo}…`);
+  const stage = $("#export-stage");
+  stage.innerHTML = dossierHTML(m);
+  const el = $("#dossier-tmp");
+  html2canvas(el, { scale: exportScale(), backgroundColor:"#f2ecdd", useCORS:true }).then(canvas => {
+    const { jsPDF } = window.jspdf;
+    // Page A4 ; l'image est découpée en tranches si le dossier est long
+    const pdf = new jsPDF({ unit:"mm", format:"a4" });
+    const pageW = 210, pageH = 297, margin = 10;
+    const imgW = pageW - margin*2;
+    const pxPerMM = canvas.width / imgW;
+    const pageContentPx = (pageH - margin*2) * pxPerMM;
+    let y = 0, first = true;
+    while(y < canvas.height){
+      const sliceH = Math.min(pageContentPx, canvas.height - y);
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width; slice.height = sliceH;
+      slice.getContext("2d").drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+      if(!first) pdf.addPage();
+      pdf.addImage(slice.toDataURL("image/jpeg", .92), "JPEG", margin, margin, imgW, sliceH / pxPerMM);
+      y += sliceH; first = false;
+    }
+    pdf.save(`dossier-${m.pseudo.replace(/\s+/g,"-").toLowerCase()}.pdf`);
+    stage.innerHTML = "";
+    toast("Dossier PDF exporté.");
+  }).catch(() => { stage.innerHTML = ""; toast("Échec de l'export PDF."); });
+}
+
+/* ---------- Sauvegarde / restauration JSON globale ---------- */
+$("#btn-export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `guilde-hub-${(state.guild.name||"data").replace(/\s+/g,"-").toLowerCase()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Sauvegarde JSON exportée (membres + vaisseaux + organigramme + décorations).");
+});
+
+$("#btn-import").addEventListener("click", () => $("#import-file").click());
+$("#import-file").addEventListener("change", () => {
+  const f = $("#import-file").files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const data = JSON.parse(r.result);
+      if(!data || !Array.isArray(data.members)) throw new Error("format");
+      state = {
+        version: 1,
+        guild: Object.assign({ name:"Guilde Hub", motto:"", logo:null, accent:"#e2ab4a", matricule:{ prefix:"MAT-", pattern:"000-AAAA-0000" } }, data.guild || {}),
+        members: data.members || [],
+        ships: (data.ships || []).map(s => Object.assign({ loadout:{} }, s)),
+        org: data.org || [],
+        decorations: data.decorations || []
+      };
+      editingMemberId = null; editingShipId = null; selectedChipId = null; openAssignNodeId = null;
+      cancelMemberEdit();
+      refreshAll();
+      toast(`Données importées : ${state.members.length} membres, ${state.ships.length} vaisseaux.`);
+    } catch(err){
+      toast("Fichier invalide — importez un JSON exporté par Guilde Hub.");
+    }
+    $("#import-file").value = "";
+  };
+  r.readAsText(f);
+});
+
+/* =====================================================================
+   PARAMÈTRES DE GUILDE
+   ===================================================================== */
+$("#btn-settings").addEventListener("click", () => {
+  $("#g-name").value = state.guild.name;
+  $("#g-motto").value = state.guild.motto;
+  $("#g-accent").value = state.guild.accent;
+  if(!state.guild.matricule) state.guild.matricule = { prefix:"MAT-", pattern:"000-AAAA-0000" };
+  $("#g-mat-prefix").value = state.guild.matricule.prefix || "";
+  $("#g-mat-pattern").value = state.guild.matricule.pattern || "";
+  $("#settings-modal").classList.add("open");
+});
+$("#g-close").addEventListener("click", () => $("#settings-modal").classList.remove("open"));
+$("#settings-modal").addEventListener("click", e => { if(e.target.id === "settings-modal") $("#settings-modal").classList.remove("open"); });
+
+$("#g-name").addEventListener("input", () => { state.guild.name = $("#g-name").value; refreshAll(); });
+$("#g-motto").addEventListener("input", () => { state.guild.motto = $("#g-motto").value; refreshAll(); });
+$("#g-accent").addEventListener("input", () => { state.guild.accent = $("#g-accent").value; refreshAll(); });
+$("#g-mat-prefix").addEventListener("input", () => {
+  if(!state.guild.matricule) state.guild.matricule = {};
+  state.guild.matricule.prefix = $("#g-mat-prefix").value;
+});
+$("#g-mat-pattern").addEventListener("input", () => {
+  if(!state.guild.matricule) state.guild.matricule = {};
+  state.guild.matricule.pattern = $("#g-mat-pattern").value;
+});
+$("#g-mat-all").addEventListener("click", () => {
+  const missing = state.members.filter(m => !m.matricule);
+  if(!missing.length){ toast("Tous les membres ont déjà un matricule."); return; }
+  missing.forEach(m => m.matricule = genMatricule());
+  refreshAll();
+  toast(`${missing.length} matricule(s) généré(s).`);
+});
+$("#g-logo").addEventListener("change", () => readImageFile($("#g-logo"), d => { if(d){ state.guild.logo = d; refreshAll(); toast("Logo mis à jour sur tous les documents."); } }));
+
+$("#g-clear").addEventListener("click", () => {
+  if(!confirm("Effacer TOUTES les données (membres, vaisseaux, organigramme, décorations) ?\nPensez à exporter le JSON avant.")) return;
+  state.members = []; state.ships = []; state.org = []; state.decorations = [];
+  editingMemberId = null; editingShipId = null; selectedChipId = null; openAssignNodeId = null;
+  cancelMemberEdit();
+  refreshAll();
+  toast("Données effacées.");
+});
+
+/* =====================================================================
+   DONNÉES DE DÉMONSTRATION (supprimables : Paramètres → Tout effacer)
+   ===================================================================== */
+function seedDemo(){
+  const m1 = addMember({ pseudo:"Kell Voss", grade:"Amiral", faction:"Commandement", joined:"2023-02-11" }, {silent:true});
+  const m2 = addMember({ pseudo:"NovaStrike", grade:"Capitaine", faction:"Escadron Aurora", joined:"2024-06-03" }, {silent:true});
+  const m3 = addMember({ pseudo:"Drifter-7", grade:"Vétéran", faction:"Logistique", joined:"2025-01-19" }, {silent:true});
+  const root = { id: uid(), title:"Commandement", grade:"Amiral", memberId:m1.id, parentId:"" };
+  state.org.push(root);
+  state.org.push({ id: uid(), title:"Chef d'escadron", grade:"Capitaine", memberId:m2.id, parentId:root.id });
+  state.org.push({ id: uid(), title:"Officier logistique", grade:"", memberId:"", parentId:root.id });
+  state.ships.push({
+    id: uid(), name:"Dague d'Orion", model:"Aegis Gladius", role:"Chasseur léger",
+    ownerId:m2.id, status:"assure", ref:"VSX-DAGU",
+    loadout:{ armes:"3× CF-227 Badger", missiles:"4× Ignite II", boucliers:"FR-66", generateur:"Regulus", refroidisseurs:"2× Bracer", quantum:"XL-1" }
+  });
+  state.ships.push({
+    id: uid(), name:"Bastion", model:"RSI Constellation Andromeda", role:"Multi-rôle",
+    ownerId:m1.id, status:"reparation", ref:"VSX-BAST",
+    loadout:{ armes:"4× M5A Laser", missiles:"—", boucliers:"2× Sheut", generateur:"Ginzel", refroidisseurs:"2× Frost-Star", quantum:"Bolon" }
+  });
+  state.decorations.push({
+    id: uid(), memberId:m2.id, type:"Médaille", title:"Étoile de Stanton",
+    motif:"Pour bravoure exceptionnelle lors de la défense du convoi C-114.",
+    date:"2026-05-20", signer:"Amiral Kell Voss", ref: refCode("CERT")
+  });
+}
+
+/* =====================================================================
+   INITIALISATION
+   ===================================================================== */
+(function init(){
+  seedDemo(); // jeu d'essai pour voir la liaison entre onglets — effaçable
+  $("#c-date").value = new Date().toISOString().slice(0,10);
+  refreshAll();
+})();
+</script>
+</body>
+</html>
